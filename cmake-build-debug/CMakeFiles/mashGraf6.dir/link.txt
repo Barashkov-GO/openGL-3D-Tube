@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/mashGraf6.dir/main.cpp.o CMakeFiles/mashGraf6.dir/stb_image.cpp.o -o mashGraf6  /usr/local/lib/libglfw3.a /usr/lib/x86_64-linux-gnu/libGL.so -lpthread /usr/lib/x86_64-linux-gnu/librt.so -lm -ldl 
