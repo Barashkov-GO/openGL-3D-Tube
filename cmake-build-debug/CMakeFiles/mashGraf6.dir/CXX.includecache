@@ -63,6 +63,8 @@ vector
 -
 fstream
 -
+string
+-
 
 /home/fanat/Projects/C++/mashGraf6/stb_image.h
 stb_image.h

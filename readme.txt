@@ -10,6 +10,7 @@ spacebar - for polygonmode (on/off)
 t - for twin animation
 m - for material parameters (on/off)
 l - for turn on/off light
+i - for swap textures
 
 w, a, s, d - to rotate figure
 x, y, z - to set three-point perspective

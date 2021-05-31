@@ -5,10 +5,13 @@
 #include <cmath>
 #include <vector>
 #include <fstream>
+#include <string>
 
 using namespace std;
 
-const char *tex_path = "texture.bmp";
+const char *tex_path[] = {"texture.bmp", "texture2.bmp", "texture3.bmp"};
+unsigned int text_id;
+
 float per_x = 0;
 float per_y = 0;
 float per_z = 0;
@@ -345,6 +348,9 @@ void download_scene(const char *path){
     file >> b.first;
     t.set_twin(b.first);
     file >> scale_x >> scale_y >> scale_z;
+    unsigned int id;
+    file >> id;
+    text_id = id;
     int f;
     file >> f;
     polygon = f != 0;
@@ -371,6 +377,7 @@ void upload_scene(const char *path) {
     file << b.first << endl << b.second << endl;
     file << t.get_twin() << endl;
     file << scale_x << endl << scale_y << endl << scale_z << endl;
+    file << text_id << endl;
     if (polygon){
         file << 1;
     } else {
@@ -424,6 +431,12 @@ GLFWwindow* init() {
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS && key == GLFW_KEY_SPACE) {
         polygon = !polygon;
+    }
+    if (action == GLFW_PRESS && key == GLFW_KEY_I) {
+        text_id++;
+        if (text_id > 2){
+            text_id = 0;
+        }
     }
     if (action == GLFW_PRESS && key == GLFW_KEY_T) {
         is_twining = !is_twining;
@@ -571,7 +584,7 @@ void draw(){
     perspective(true);
     polygonize(polygon);
     light();
-    load_texture(tex_path);
+    load_texture(static_cast<const char*>(tex_path[text_id]));
     glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
     if (is_material) {
         material();
