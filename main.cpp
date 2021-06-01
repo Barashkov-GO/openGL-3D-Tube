@@ -6,12 +6,14 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <chrono>
 
 using namespace std;
 
 const char *tex_path[] = {"texture.bmp", "texture2.bmp", "texture3.bmp"};
 unsigned int text_id;
 
+float timer;
 float per_x = 0;
 float per_y = 0;
 float per_z = 0;
@@ -260,10 +262,10 @@ public:
 
     Tube twin(){
         if (tw >= 1){
-            dtw = -0.005;
+            dtw = -timer;
         }
         if (tw <= 0){
-            dtw = 0.005;
+            dtw = timer;
         }
         auto t1 = Tube(bese(), height_deg, height, circle_deg, radius_low, radius_high, tw + dtw, dtw);
         t1.set_rotation_vars(xrot, yrot, zrot);
@@ -627,15 +629,17 @@ int main() {
     glViewport(0, 0, WIDTH, HEIGHT); // set default viewport
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);  //set new viewport sizes when user changes window sizes
 
-    t = Tube(Point(-0.1, -0.3, -0.5), 5, 1, 5, 0.2, 0.4, 0.0, 0.005);
+    t = Tube(Point(-0.1, -0.3, -0.5), 5, 1, 5, 0.2, 0.4, 0.0, 0.01);
 
     download_scene("scene_file.txt");
     while(!glfwWindowShouldClose(window)) // rendering cycle
     {
+        auto start = chrono::steady_clock::now();
         processInput(window);
         draw();
         glfwSwapBuffers(window);
         glfwPollEvents();
+        timer = 1.0 / chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() / 5;
     }
     upload_scene("scene_file.txt");
     glfwTerminate();

@@ -65,6 +65,8 @@ fstream
 -
 string
 -
+chrono
+-
 
 /home/fanat/Projects/C++/mashGraf6/stb_image.h
 stb_image.h
