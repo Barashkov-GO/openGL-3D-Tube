@@ -7,7 +7,6 @@
 #include <fstream>
 #include <string>
 #include <chrono>
-#include <set>
 
 using namespace std;
 
@@ -123,10 +122,10 @@ Vec normal_for_face(Point a, Point b, Point c){
     Vec v1 = Vec(a, b);
     Vec v2 = Vec(b, c);
     auto v3 = v1 ^ v2;
-//    auto sq = sqrt(v3.x * v3.x + v3.y * v3.y + v3.z * v3.z);
-//    v3.x /= sq;
-//    v3.y /= sq;
-//    v3.z /= sq;
+    auto sq = sqrt(v3.x * v3.x + v3.y * v3.y + v3.z * v3.z);
+    v3.x /= sq;
+    v3.y /= sq;
+    v3.z /= sq;
     return v3;
 }
 
@@ -200,6 +199,23 @@ class Tube {
 
 public:
 
+    void set_polygons(){
+        pair<float, float> tc;
+
+        vert.clear();
+        vertn.clear();
+        vertt.clear();
+
+        for (int i = 0; i < circles.size() - 1; i++) {
+            for (int j = 0; j < circles[i].size() - 1; j++) {
+                set_polygon(i, j);
+                set_polygon(i, j + 1);
+                set_polygon(i + 1, j + 1);
+                set_polygon(i + 1, j);
+            }
+        }
+    }
+
     Tube()=default;
 
     Tube(Point cb, float hd, float h, float cd, float rl, float rh, float tw, float dtw){
@@ -224,6 +240,7 @@ public:
             circles.push_back(circle);
             circle.clear();
         }
+        set_polygons();
     }
 
     void set_rotation_vars(float a, float b, float c){
@@ -319,24 +336,10 @@ public:
         vertt.push_back(tex_coord(cs, cis, i, j).second);
     }
 
-    void set_polygons(){
+    void draw(){
         set_rotation();
         set_scale();
         glLineWidth(3.0f);
-        pair<float, float> tc;
-
-        vert.clear();
-        vertn.clear();
-        vertt.clear();
-
-        for (int i = 0; i < circles.size() - 1; i++) {
-            for (int j = 0; j < circles[i].size() - 1; j++) {
-                set_polygon(i, j);
-                set_polygon(i, j + 1);
-                set_polygon(i + 1, j + 1);
-                set_polygon(i + 1, j);
-            }
-        }
         glVertexPointer(3, GL_FLOAT, 0, &(vert[0]));
         glNormalPointer(GL_FLOAT, 0, &(vertn[0]));
         glTexCoordPointer(2, GL_FLOAT, 0, &(vertt[0]));
@@ -556,7 +559,7 @@ void draw_prepare(){
 }
 
 void light(){
-    glShadeModel(GL_FLAT);
+//    glShadeModel(GL_FLAT);
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
 
@@ -648,7 +651,7 @@ void draw(){
 //    R - вектор отражения
 //    S - вектор наблюдения
 
-    t.set_polygons();
+    t.draw();
 }
 
 
@@ -666,11 +669,11 @@ int main() {
     set_textures(3);
 
     t = Tube(Point(-0.1, -0.3, -0.5), 5, 1, 5, 0.2, 0.4, 0.0, 0.01);
-    std::set<float> fpsmeter;
     float fps = 0.0;
     int cnt = 0;
 
     download_scene("scene_file.txt");
+    t.set_polygons();
     while(!glfwWindowShouldClose(window)) // rendering cycle
     {
         auto start = chrono::steady_clock::now();
@@ -684,7 +687,6 @@ int main() {
         if (cnt % 500 == 0){
             cout << fps / static_cast<float>(cnt) << endl;
         }
-//        printf("\tfps: %f\n", timer * 5000.0);
     }
     upload_scene("scene_file.txt");
     glfwTerminate();
