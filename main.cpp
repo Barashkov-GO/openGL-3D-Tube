@@ -640,6 +640,7 @@ int main() {
         glfwSwapBuffers(window);
         glfwPollEvents();
         timer = 1.0 / chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() / 5;
+        cout << timer * 5 * 1000 << endl;
     }
     upload_scene("scene_file.txt");
     glfwTerminate();
