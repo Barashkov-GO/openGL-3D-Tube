@@ -7,17 +7,18 @@
 #include <fstream>
 #include <string>
 #include <chrono>
+#include <set>
 
 using namespace std;
 
-std::string tex_path[40];
+string tex_path[40];
 unsigned int text_id;
 
 void set_textures(unsigned int a){
     for (auto i = 0; i < a; i++){
         char buff[255];
         sprintf(buff, "texture%d.bmp", i);
-        tex_path[i] = std::string(buff);
+        tex_path[i] = string(buff);
     }
 }
 
@@ -37,8 +38,8 @@ bool is_textured = false;
 float scale_x = 1;
 float scale_y = 1;
 float scale_z = 1;
-int WIDTH = 600;
-int HEIGHT = 600;
+int WIDTH = 800;
+int HEIGHT = 800;
 
 struct Point {
     float x{};
@@ -164,13 +165,9 @@ Vec normal_for_vertex(vector<vector<Point>> &circles, int i, int j) {
                             normal_for_face(circles[i][j_prev], circles[i][j], circles[i_next][j]));
 }
 
-float *vertexes;
-int vertexes_size = 3;
-float *tex_coords;
-int tex_coords_size = 2;
-float *normals;
-int normals_size = 3;
-
+vector<float> vert;
+vector<float> vertn;
+vector<float> vertt;
 
 class Tube {
     Point center_big;
@@ -310,19 +307,16 @@ public:
     }
 
     void set_polygon(int i, int j){
-        int cs = circles.size();
-        int cis = circles[0].size();
-        vertexes = (float*)realloc(vertexes, (vertexes_size + 3) * sizeof(float));
-        normals = (float*)realloc(normals, (normals_size + 3) * sizeof(float));
-        tex_coords = (float*)realloc(tex_coords, (tex_coords_size + 2) * sizeof(float));
-        vertexes[vertexes_size++] = circles[i][j].x;
-        vertexes[vertexes_size++] = circles[i][j].y;
-        vertexes[vertexes_size++] = circles[i][j].z;
-        tex_coords[tex_coords_size++] = tex_coord(cs, cis, i, j).first;
-        tex_coords[tex_coords_size++] = tex_coord(cs, cis, i, j).second;
-        normals[normals_size++] = normal_for_vertex(circles, i, j).x;
-        normals[normals_size++] = normal_for_vertex(circles, i, j).y;
-        normals[normals_size++] = normal_for_vertex(circles, i, j).z;
+        auto cs = circles.size();
+        auto cis = circles[0].size();
+        vert.push_back(circles[i][j].x);
+        vert.push_back(circles[i][j].y);
+        vert.push_back(circles[i][j].z);
+        vertn.push_back(normal_for_vertex(circles, i, j).x);
+        vertn.push_back(normal_for_vertex(circles, i, j).y);
+        vertn.push_back(normal_for_vertex(circles, i, j).z);
+        vertt.push_back(tex_coord(cs, cis, i, j).first);
+        vertt.push_back(tex_coord(cs, cis, i, j).second);
     }
 
     void set_polygons(){
@@ -330,6 +324,11 @@ public:
         set_scale();
         glLineWidth(3.0f);
         pair<float, float> tc;
+
+        vert.clear();
+        vertn.clear();
+        vertt.clear();
+
         for (int i = 0; i < circles.size() - 1; i++) {
             for (int j = 0; j < circles[i].size() - 1; j++) {
                 set_polygon(i, j);
@@ -338,8 +337,11 @@ public:
                 set_polygon(i + 1, j);
             }
         }
+        glVertexPointer(3, GL_FLOAT, 0, &(vert[0]));
+        glNormalPointer(GL_FLOAT, 0, &(vertn[0]));
+        glTexCoordPointer(2, GL_FLOAT, 0, &(vertt[0]));
+        glDrawArrays(GL_QUADS, 0, vert.size() / 3);
     }
-
 };
 
 Tube t;
@@ -647,11 +649,6 @@ void draw(){
 //    S - вектор наблюдения
 
     t.set_polygons();
-    glVertexPointer(3, GL_FLOAT, 0, vertexes);
-    glNormalPointer(GL_FLOAT, 0, normals);
-    glTexCoordPointer(2, GL_FLOAT, 0, tex_coords);
-
-    glDrawArrays(GL_POLYGON, 0, vertexes_size / 4);
 }
 
 
@@ -662,13 +659,16 @@ int main() {
     glfwMakeContextCurrent(window); //make this window current
     glViewport(0, 0, WIDTH, HEIGHT); // set default viewport
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);  //set new viewport sizes when user changes window sizes
-    vertexes = new float[3];
-    normals = new float[3];
-    tex_coords = new float[2];
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glEnableClientState(GL_NORMAL_ARRAY);
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
     set_textures(3);
 
     t = Tube(Point(-0.1, -0.3, -0.5), 5, 1, 5, 0.2, 0.4, 0.0, 0.01);
+    std::set<float> fpsmeter;
+    float fps = 0.0;
+    int cnt = 0;
 
     download_scene("scene_file.txt");
     while(!glfwWindowShouldClose(window)) // rendering cycle
@@ -679,12 +679,14 @@ int main() {
         glfwSwapBuffers(window);
         glfwPollEvents();
         timer = 1.0 / chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() / 5;
-        cout << timer << endl;
+        fps += timer * 5000.0;
+        cnt++;
+        if (cnt % 500 == 0){
+            cout << fps / static_cast<float>(cnt) << endl;
+        }
+//        printf("\tfps: %f\n", timer * 5000.0);
     }
     upload_scene("scene_file.txt");
-    delete[] vertexes;
-    delete[] tex_coords;
-    delete[] normals;
     glfwTerminate();
 
     return 0;
