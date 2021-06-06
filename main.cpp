@@ -10,8 +10,20 @@
 
 using namespace std;
 
-const char *tex_path[] = {"texture.bmp", "texture2.bmp", "texture3.bmp"};
+std::string tex_path[40];
 unsigned int text_id;
+
+void set_textures(unsigned int a){
+    for (auto i = 0; i < a; i++){
+        char buff[255];
+        sprintf(buff, "texture%d.bmp", i);
+        tex_path[i] = std::string(buff);
+    }
+}
+
+float amb1 = 0.0;
+float dif1 = 1.0;
+float spec1 = 1.0;
 
 float timer;
 float per_x = 0;
@@ -25,8 +37,8 @@ bool is_textured = false;
 float scale_x = 1;
 float scale_y = 1;
 float scale_z = 1;
-int WIDTH = 1000;
-int HEIGHT = 1000;
+int WIDTH = 600;
+int HEIGHT = 600;
 
 struct Point {
     float x{};
@@ -74,7 +86,6 @@ struct Vec {
     friend Vec operator^(const Vec &a, const Vec &b){
         return {a.y * b.z - a.z * b.y, -(a.x * b.z - b.x * a.z), a.x * b.y - b.x * a.y};
     }
-
 };
 
 pair<float, float> tex_coord(int cs, int cis, int i, int j){
@@ -82,6 +93,7 @@ pair<float, float> tex_coord(int cs, int cis, int i, int j){
 }
 
 void load_texture(const char *path) {
+    glEnable(GL_TEXTURE_2D);
     stbi_set_flip_vertically_on_load(true);
     int width, height, nrChannels;
     auto data = stbi_load(path, &width, &height, &nrChannels, 0);
@@ -101,7 +113,7 @@ void load_texture(const char *path) {
     } else if(nrChannels == 4) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
     } else {
-      cout << "texture error\n";
+        cout << "texture error\n";
     }
     stbi_image_free(data);
 }
@@ -109,7 +121,12 @@ void load_texture(const char *path) {
 Vec normal_for_face(Point a, Point b, Point c){
     Vec v1 = Vec(a, b);
     Vec v2 = Vec(b, c);
-    return v1 ^ v2;
+    auto v3 = v1 ^ v2;
+    auto sq = sqrt(v3.x * v3.x + v3.y * v3.y + v3.z * v3.z);
+    v3.x /= sq;
+    v3.y /= sq;
+    v3.z /= sq;
+    return v3;
 }
 
 Vec balance_norms(Vec a, Vec b, Vec c, Vec d) {
@@ -117,27 +134,27 @@ Vec balance_norms(Vec a, Vec b, Vec c, Vec d) {
 }
 
 Vec balance_norms(Vec a, Vec b) {
-    return {-(a.x + b.x) / 4, -(a.y + b.y) / 4, -(a.z + b.z) / 4};
+    return {-(a.x + b.x) / 2, -(a.y + b.y) / 2, -(a.z + b.z) / 2};
 }
 
 Vec normal_for_vertex(vector<vector<Point>> &circles, int i, int j) {
     int i_prev, j_prev, i_next, j_next;
     j_prev = j - 1;
     j_next = j + 1;
-    i_next = i + 1;
     i_prev = i - 1;
+    i_next = i + 1;
 
     if (j == 0){
-        j_prev = circles[i].size() - 1;
+        j_prev = circles[i].size() - 2;
     }
     if (j == circles[i].size() - 1){
-        j_next = 0;
+        j_next = 1;
     }
-    if (i == 0){ //посмотреть только 2 плоскости
+    if (i_prev <= 0){ //посмотреть только 2 плоскости
         return balance_norms(normal_for_face(circles[i][j], circles[i][j_next], circles[i_next][j_next]), \
                             normal_for_face(circles[i][j_prev], circles[i][j], circles[i_next][j]));
     }
-    if (i == circles.size() - 1){  //посмотреть только 2 плоскости
+    if (i_next >= circles.size() - 1){  //посмотреть только 2 плоскости
         return balance_norms(normal_for_face(circles[i_prev][j_prev], circles[i_prev][j], circles[i][j]), \
                             normal_for_face(circles[i_prev][j], circles[i_prev][j_next], circles[i][j_next]));
     }
@@ -146,6 +163,14 @@ Vec normal_for_vertex(vector<vector<Point>> &circles, int i, int j) {
                             normal_for_face(circles[i][j], circles[i][j_next], circles[i_next][j_next]), \
                             normal_for_face(circles[i][j_prev], circles[i][j], circles[i_next][j]));
 }
+
+float *vertexes;
+int vertexes_size = 3;
+float *tex_coords;
+int tex_coords_size = 2;
+float *normals;
+int normals_size = 3;
+
 
 class Tube {
     Point center_big;
@@ -284,49 +309,33 @@ public:
         return t1;
     }
 
-    void draw(){
+    void set_polygon(int i, int j){
+        int cs = circles.size();
+        int cis = circles[0].size();
+        vertexes = (float*)realloc(vertexes, (vertexes_size + 3) * sizeof(float));
+        normals = (float*)realloc(normals, (normals_size + 3) * sizeof(float));
+        tex_coords = (float*)realloc(tex_coords, (tex_coords_size + 2) * sizeof(float));
+        vertexes[vertexes_size++] = circles[i][j].x;
+        vertexes[vertexes_size++] = circles[i][j].y;
+        vertexes[vertexes_size++] = circles[i][j].z;
+        tex_coords[tex_coords_size++] = tex_coord(cs, cis, i, j).first;
+        tex_coords[tex_coords_size++] = tex_coord(cs, cis, i, j).second;
+        normals[normals_size++] = normal_for_vertex(circles, i, j).x;
+        normals[normals_size++] = normal_for_vertex(circles, i, j).y;
+        normals[normals_size++] = normal_for_vertex(circles, i, j).z;
+    }
+
+    void set_polygons(){
         set_rotation();
         set_scale();
         glLineWidth(3.0f);
-        Vec a;
         pair<float, float> tc;
-        int cs = circles.size();
-        int cis = circles[0].size();
-        for (int i = 0; i < circles.size() - 1; i++){
+        for (int i = 0; i < circles.size() - 1; i++) {
             for (int j = 0; j < circles[i].size() - 1; j++) {
-                glColor3f(0.5f, 0.3f, 0.7f);
-                glBegin(GL_POLYGON);
-
-                tc = tex_coord(cs, cis, i, j);
-//                cout << tc.first << " " << tc.second << endl;
-                glTexCoord2f(tc.first, tc.second);
-                a = normal_for_vertex(circles, i, j);
-                glNormal3f(a.x, a.y, a.z);
-                glVertex3f(circles[i][j].x, circles[i][j].y, circles[i][j].z);
-
-                tc = tex_coord(cs, cis, i, j + 1);
-//                cout << tc.first << " " << tc.second << endl;
-                glTexCoord2f(tc.first, tc.second);
-                a = normal_for_vertex(circles, i, j + 1);
-                glNormal3f(a.x, a.y, a.z);
-                glVertex3f(circles[i][j + 1].x, circles[i][j + 1].y, circles[i][j + 1].z);
-
-                tc = tex_coord(cs, cis, i + 1, j + 1);
-//                cout << tc.first << " " << tc.second << endl;
-                glTexCoord2f(tc.first, tc.second);
-                a = normal_for_vertex(circles, i + 1, j + 1);
-                glNormal3f(a.x, a.y, a.z);
-                glVertex3f(circles[i + 1][j + 1].x, circles[i + 1][j + 1].y, circles[i + 1][j + 1].z);
-
-                tc = tex_coord(cs, cis, i + 1, j);
-//                cout << tc.first << " " << tc.second << endl;
-                glTexCoord2f(tc.first, tc.second);
-                a = normal_for_vertex(circles, i + 1, j);
-                glNormal3f(a.x, a.y, a.z);
-                glVertex3f(circles[i + 1][j].x, circles[i + 1][j].y, circles[i + 1][j].z);
-
-//                cout << endl;
-                glEnd();
+                set_polygon(i, j);
+                set_polygon(i, j + 1);
+                set_polygon(i + 1, j + 1);
+                set_polygon(i + 1, j);
             }
         }
     }
@@ -353,6 +362,10 @@ void download_scene(const char *path){
     unsigned int id;
     file >> id;
     text_id = id;
+    float a1;
+    file >> a1;
+    t.set_twin(a1);
+
     int f;
     file >> f;
     polygon = f != 0;
@@ -380,6 +393,7 @@ void upload_scene(const char *path) {
     file << t.get_twin() << endl;
     file << scale_x << endl << scale_y << endl << scale_z << endl;
     file << text_id << endl;
+    file << t.get_twin() << endl;
     if (polygon){
         file << 1;
     } else {
@@ -461,6 +475,26 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     if(action == GLFW_PRESS && key == GLFW_KEY_7) {
         download_scene("scene_file.txt");
     }
+    if(action == GLFW_PRESS && key == GLFW_KEY_8) {
+        amb1 += 0.1;
+        if(amb1 >= 1.0){
+            cout << amb1 << endl;
+            amb1 = 0.0;
+        }
+    }
+    if(action == GLFW_PRESS && key == GLFW_KEY_9) {
+        dif1 -= 0.1;
+        if (dif1 <= 0.0){
+            dif1 = 1.0;
+        }
+    }
+    if(action == GLFW_PRESS && key == GLFW_KEY_0) {
+        spec1 -= 0.1;
+        if(spec1 <= 0.0){
+            spec1 = 1.0;
+        }
+    }
+
     if(action == GLFW_PRESS && key == GLFW_KEY_2) {
         t = t.set_height_degree(2);
     }
@@ -485,17 +519,13 @@ void processInput(GLFWwindow *window) {
 
     if(glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
         per_x += 0.05;
-        cout << "Perspective X: " << per_x << endl;
     }
 
     if(glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS) {
         per_y += 0.05;
-        cout << "Perspective Y: " << per_y << endl;
     }
-
     if(glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
         per_z += 0.05;
-        cout << "Perspective Z: " << per_z << endl;
     }
     if(glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
         scale_x += 0.05;
@@ -507,7 +537,6 @@ void processInput(GLFWwindow *window) {
         scale_y -= 0.05;
         scale_z -= 0.05;
     }
-
     if(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
         t.set_rotation_vars(0.7, 0, 0);
     }
@@ -520,17 +549,18 @@ void draw_prepare(){
     // Сброс трансформаций
     glLoadIdentity(); // если выключить, то нажатие на клавиши - ускорение (скорость поворотов суммируется)
     glEnable(GL_DEPTH_TEST);                                                                                            // если выключить, непонятно что за чем находится
-    glEnable(GL_NORMALIZE);
+//    glEnable(GL_NORMALIZE);
     glEnable(GL_TEXTURE_2D);
 }
 
 void light(){
+    glShadeModel(GL_FLAT);
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
 
-    GLfloat amb[] = {0.0, 0.0, 0.0, 1.0};
-    GLfloat dif[] = {1.0, 1.0, 1.0, 1.0};
-    GLfloat spe[] = {1.0, 1.0, 1.0, 1.0};
+    GLfloat amb[] = {amb1, 0.0, 0.0, 1.0};
+    GLfloat dif[] = {dif1, 1.0, 1.0, 1.0};
+    GLfloat spe[] = {spec1, 1.0, 1.0, 1.0};
     GLfloat pos[] = {1.0, 1.0, 1.3, 0.5};
     GLfloat exp[] = {120};
     GLfloat lin[] = {0.1};
@@ -585,26 +615,24 @@ void draw(){
     draw_prepare();
     perspective(true);
     polygonize(polygon);
-    light();
-    load_texture(static_cast<const char*>(tex_path[text_id]));
     glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
     if (is_material) {
         material();
     }
     if(is_light) {
-        glEnable(GL_LIGHT0);
+        light();
     } else {
         glDisable(GL_LIGHT0);
     }
     if(is_textured){
-        glEnable(GL_TEXTURE_2D);
+        load_texture((tex_path[text_id]).c_str());
     } else {
         glDisable(GL_TEXTURE_2D);
     }
     if (is_twining){
         t = t.twin();
     }
-    glOrtho(-1, 1, -1, 1, -1, 1);
+    glOrtho(-1, 1, -1, 1, -20, 20);
 //    float I = Ia * ka + Il / (d + K) * (kd * (n * L) + ks * (R * S));
 //    Ia - интенсивность рассеянного света
 //    ka - коэффициент диффузного отражения рассеянного света
@@ -617,7 +645,13 @@ void draw(){
 //    ks - произвольная постоянная
 //    R - вектор отражения
 //    S - вектор наблюдения
-    t.draw();
+
+    t.set_polygons();
+    glVertexPointer(3, GL_FLOAT, 0, vertexes);
+    glNormalPointer(GL_FLOAT, 0, normals);
+    glTexCoordPointer(2, GL_FLOAT, 0, tex_coords);
+
+    glDrawArrays(GL_POLYGON, 0, vertexes_size / 4);
 }
 
 
@@ -628,6 +662,11 @@ int main() {
     glfwMakeContextCurrent(window); //make this window current
     glViewport(0, 0, WIDTH, HEIGHT); // set default viewport
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);  //set new viewport sizes when user changes window sizes
+    vertexes = new float[3];
+    normals = new float[3];
+    tex_coords = new float[2];
+
+    set_textures(3);
 
     t = Tube(Point(-0.1, -0.3, -0.5), 5, 1, 5, 0.2, 0.4, 0.0, 0.01);
 
@@ -640,9 +679,12 @@ int main() {
         glfwSwapBuffers(window);
         glfwPollEvents();
         timer = 1.0 / chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() / 5;
-        cout << timer * 5 * 1000 << endl;
+        cout << timer << endl;
     }
     upload_scene("scene_file.txt");
+    delete[] vertexes;
+    delete[] tex_coords;
+    delete[] normals;
     glfwTerminate();
 
     return 0;
