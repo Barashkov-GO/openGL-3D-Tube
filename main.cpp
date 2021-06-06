@@ -123,10 +123,10 @@ Vec normal_for_face(Point a, Point b, Point c){
     Vec v1 = Vec(a, b);
     Vec v2 = Vec(b, c);
     auto v3 = v1 ^ v2;
-    auto sq = sqrt(v3.x * v3.x + v3.y * v3.y + v3.z * v3.z);
-    v3.x /= sq;
-    v3.y /= sq;
-    v3.z /= sq;
+//    auto sq = sqrt(v3.x * v3.x + v3.y * v3.y + v3.z * v3.z);
+//    v3.x /= sq;
+//    v3.y /= sq;
+//    v3.z /= sq;
     return v3;
 }
 
