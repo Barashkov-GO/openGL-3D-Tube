@@ -5,6 +5,7 @@
 5 - to get figure textured
 6 - to save scene into scene file
 7 - to load scene outo scene file
+8, 9, 0 - to change ambient, diffuse and specular first coefficients
 
 spacebar - for polygonmode (on/off)
 t - for twin animation
